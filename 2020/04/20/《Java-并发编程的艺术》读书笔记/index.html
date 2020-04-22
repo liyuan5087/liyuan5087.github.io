@@ -79,14 +79,14 @@
 
 
 
-<meta name="description" content="第一章 并发编程的挑战 cpu 时间片一般是几十毫秒  使用 vmstat 命令可以测量上下文切换的次数，其中 CS (Content Switch) 表示上下文切换的次数。 vmstat 1procs ———–memory———- —swap– —–io—- -system– ——cpu—– r  b 交换 空闲 缓冲 缓存   si   so    bi    bo   in   cs us">
+<meta name="description" content="第一章 并发编程的挑战  cpu 时间片一般是几十毫秒  使用 vmstat 命令可以测量上下文切换的次数，其中 CS (Content Switch) 表示上下文切换的次数。 vmstat 1procs ———–memory———- —swap– —–io—- -system– ——cpu—– r  b 交换 空闲 缓冲 缓存   si   so    bi    bo   in   cs us">
 <meta property="og:type" content="article">
 <meta property="og:title" content="《Java 并发编程的艺术》读书笔记">
 <meta property="og:url" content="http://liyuan5087.github.io/2020/04/20/%E3%80%8AJava-%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E7%9A%84%E8%89%BA%E6%9C%AF%E3%80%8B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/index.html">
 <meta property="og:site_name" content="阿远的地盘">
-<meta property="og:description" content="第一章 并发编程的挑战 cpu 时间片一般是几十毫秒  使用 vmstat 命令可以测量上下文切换的次数，其中 CS (Content Switch) 表示上下文切换的次数。 vmstat 1procs ———–memory———- —swap– —–io—- -system– ——cpu—– r  b 交换 空闲 缓冲 缓存   si   so    bi    bo   in   cs us">
+<meta property="og:description" content="第一章 并发编程的挑战  cpu 时间片一般是几十毫秒  使用 vmstat 命令可以测量上下文切换的次数，其中 CS (Content Switch) 表示上下文切换的次数。 vmstat 1procs ———–memory———- —swap– —–io—- -system– ——cpu—– r  b 交换 空闲 缓冲 缓存   si   so    bi    bo   in   cs us">
 <meta property="article:published_time" content="2020-04-20T07:43:17.000Z">
-<meta property="article:modified_time" content="2020-04-20T08:09:57.219Z">
+<meta property="article:modified_time" content="2020-04-22T09:15:48.003Z">
 <meta property="article:author" content="Cavendish">
 <meta property="article:tag" content="Java 并发编程的艺术">
 <meta name="twitter:card" content="summary">
@@ -299,7 +299,8 @@
       
 
       
-        <h1 id="第一章-并发编程的挑战"><a href="#第一章-并发编程的挑战" class="headerlink" title="第一章 并发编程的挑战"></a>第一章 并发编程的挑战</h1><ol>
+        <h1 id="第一章-并发编程的挑战"><a href="#第一章-并发编程的挑战" class="headerlink" title="第一章 并发编程的挑战"></a>第一章 并发编程的挑战</h1><hr>
+<ol>
 <li><p>cpu 时间片一般是几十毫秒</p>
 </li>
 <li><p>使用 vmstat 命令可以测量上下文切换的次数，其中 CS (Content Switch) 表示上下文切换的次数。</p>
@@ -316,6 +317,37 @@
 <li><p>jstack pid 命令 dump 线程信息</p>
 </li>
 </ol>
+<h1 id="第二章-Java并发机制的底层实现原理"><a href="#第二章-Java并发机制的底层实现原理" class="headerlink" title="第二章 Java并发机制的底层实现原理"></a>第二章 Java并发机制的底层实现原理</h1><hr>
+<ol>
+<li><p>volatile 是轻量级的 synchronized ,它保证共享变量的可见性。</p>
+</li>
+<li><p>volatile 不会引起线程上下文的切换和调度。</p>
+</li>
+<li><p>synchronized 在 jdk 1.6 引入偏向锁和轻量级锁，用以减少获得锁和释放锁带来的性能消耗。锁级别从低到高：无锁、偏向锁、轻量级锁、重量级锁。锁可以升级但不能降级。java 中每一个对象都可以作为锁。退出或抛出异常时释放锁。</p>
+<ul>
+<li>对于普通同步方法，锁是当前实例对象</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li>对以静态同步方法，锁是当前类的 Class 对象<ul>
+<li>对于同步方法块，锁是 synchonized 括号里配置的对象</li>
+</ul>
+</li>
+</ul>
+<ol start="4">
+<li><p>Java 中通过锁和循环CAS 实现原子操作</p>
+<ul>
+<li>ABA 问题，增加版本号解决</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li>循环时间长，开销大<ul>
+<li>只能保证一个共享变量的原子操作，通过枷锁解决。JDK 1.5 后 AtomicReference 类保证引用对象之间的原子性。</li>
+</ul>
+</li>
+</ul>
 
       
     </div>
@@ -477,7 +509,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第一章-并发编程的挑战"><span class="nav-number">1.</span> <span class="nav-text">第一章 并发编程的挑战</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第一章-并发编程的挑战"><span class="nav-number">1.</span> <span class="nav-text">第一章 并发编程的挑战</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第二章-Java并发机制的底层实现原理"><span class="nav-number">2.</span> <span class="nav-text">第二章 Java并发机制的底层实现原理</span></a></li></ol></div>
             
 
           </div>

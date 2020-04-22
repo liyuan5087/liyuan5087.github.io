@@ -299,7 +299,8 @@
       
         
           
-            <h1 id="第一章-并发编程的挑战"><a href="#第一章-并发编程的挑战" class="headerlink" title="第一章 并发编程的挑战"></a>第一章 并发编程的挑战</h1><ol>
+            <h1 id="第一章-并发编程的挑战"><a href="#第一章-并发编程的挑战" class="headerlink" title="第一章 并发编程的挑战"></a>第一章 并发编程的挑战</h1><hr>
+<ol>
 <li><p>cpu 时间片一般是几十毫秒</p>
 </li>
 <li><p>使用 vmstat 命令可以测量上下文切换的次数，其中 CS (Content Switch) 表示上下文切换的次数。</p>
@@ -316,6 +317,37 @@
 <li><p>jstack pid 命令 dump 线程信息</p>
 </li>
 </ol>
+<h1 id="第二章-Java并发机制的底层实现原理"><a href="#第二章-Java并发机制的底层实现原理" class="headerlink" title="第二章 Java并发机制的底层实现原理"></a>第二章 Java并发机制的底层实现原理</h1><hr>
+<ol>
+<li><p>volatile 是轻量级的 synchronized ,它保证共享变量的可见性。</p>
+</li>
+<li><p>volatile 不会引起线程上下文的切换和调度。</p>
+</li>
+<li><p>synchronized 在 jdk 1.6 引入偏向锁和轻量级锁，用以减少获得锁和释放锁带来的性能消耗。锁级别从低到高：无锁、偏向锁、轻量级锁、重量级锁。锁可以升级但不能降级。java 中每一个对象都可以作为锁。退出或抛出异常时释放锁。</p>
+<ul>
+<li>对于普通同步方法，锁是当前实例对象</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li>对以静态同步方法，锁是当前类的 Class 对象<ul>
+<li>对于同步方法块，锁是 synchonized 括号里配置的对象</li>
+</ul>
+</li>
+</ul>
+<ol start="4">
+<li><p>Java 中通过锁和循环CAS 实现原子操作</p>
+<ul>
+<li>ABA 问题，增加版本号解决</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li>循环时间长，开销大<ul>
+<li>只能保证一个共享变量的原子操作，通过枷锁解决。JDK 1.5 后 AtomicReference 类保证引用对象之间的原子性。</li>
+</ul>
+</li>
+</ul>
 
           
         
