@@ -228,6 +228,149 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://liyuan5087.github.io/2020/04/26/MySQL5-7-%E5%A6%82%E4%BD%95%E6%89%BE%E5%87%BA%E5%8D%A0%E7%94%A8CPU%E9%AB%98%E7%9A%84SQL/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cavendish">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阿远的地盘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/04/26/MySQL5-7-%E5%A6%82%E4%BD%95%E6%89%BE%E5%87%BA%E5%8D%A0%E7%94%A8CPU%E9%AB%98%E7%9A%84SQL/" itemprop="url">MySQL5.7 如何找出占用CPU高的SQL[转]</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2020-04-26T13:21:40+08:00">
+                2020-04-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><a href="https://www.percona.com/blog/2020/04/23/a-simple-approach-to-troubleshooting-high-cpu-in-mysql/" target="_blank" rel="noopener">https://www.percona.com/blog/2020/04/23/a-simple-approach-to-troubleshooting-high-cpu-in-mysql/</a></p>
+<p>One of our customers recently asked whether it is possible to identify, from the MySQL side, the query that is causing high CPU usage on his system. The usage of simple OS tools to find the culprit has been a widely used technique for a long time by PostgreSQL and Oracle DBAs, but it didn’t work for MySQL as historically we’ve lacked the instrumentation to match an OS thread with an internal processlist thread – until recently.</p>
+<p>Percona added support to map processlist ids to OS thread ids through column TID of the information_schema.processlist table starting on Percona Server for MySQL 5.6.27. With the release of 5.7, MySQL followed with its own implementation by extending the PERFORMANCE_SCHEMA.THREADS table and adding a new column named THREAD_OS_ID, which Percona Server for MySQL adopted in place of its own, as it usually does remain as close to upstream as possible.</p>
+<p>The following approach is useful for cases where there is a query overloading one particular CPU while other cores are performing normally. For cases where it is a general CPU usage issue, different methods can be used, such as the one in this other blog post <a href="https://www.percona.com/blog/2019/03/07/reducing-high-cpu-on-mysql-a-case-study/" target="_blank" rel="noopener">Reducing High CPU on MySQL: A Case Study</a>.</p>
+<h3 id="How-can-we-use-this-new-column-to-find-out-which-session-is-using-the-most-CPU-resources-in-my-database"><a href="#How-can-we-use-this-new-column-to-find-out-which-session-is-using-the-most-CPU-resources-in-my-database" class="headerlink" title="How can we use this new column to find out which session is using the most CPU resources in my database?"></a>How can we use this new column to find out which session is using the most CPU resources in my database?</h3><p>Let’s use an example:</p>
+<p>To troubleshoot CPU issues, we can use several tools, such as top or pidstat (requires the sysstat package). In the following example, we will use pidstat. The tool has an option (-t) that changes its view from process (the default) to threads, where it shows the associated threads within a given process. We can use it to find out which thread is consuming the most CPU in our server. Adding the -p parameter along with the mysql process id so the tool only shows MySQL threads, making it easier for us to troubleshoot. The last parameter (1) is to display one sample per second:</p>
+<p>The command is pidstat -t -p <mysqld_pid> 1:</p>
+<p><img src="https://img2020.cnblogs.com/blog/699877/202004/699877-20200425212616492-423469289.png" alt="img"></p>
+<p>We can see that the thread 32053 is consuming the most CPU by quite a large margin, and we made sure to verify that the consumption is constant across multiple samples of pidstat. Using that information, we can log into the database and use the following query to find out which MySQL Thread is the culprit:</p>
+<p><img src="https://img2020.cnblogs.com/blog/699877/202004/699877-20200425212646221-819100269.png" alt="img"></p>
+<p> There we go! Now we know that the high CPU consumption comes from a query in the joinit table, being executed by the user msandbox from localhost in the database test. Using this information we can troubleshoot the query and check the execution plan with the EXPLAIN command to see if there is any room for improvement.</p>
+<p><img src="https://img2020.cnblogs.com/blog/699877/202004/699877-20200425212725502-107593209.png" alt="img"></p>
+<p> In this case, it was a simple index that was missing!</p>
+<p><img src="https://img2020.cnblogs.com/blog/699877/202004/699877-20200425212748544-754444590.png" alt="img"></p>
+<p> After we create the index, we are no longer seeing CPU spikes:</p>
+<p><img src="https://img2020.cnblogs.com/blog/699877/202004/699877-20200425212809145-164911059.png" alt="img"></p>
+<h3 id="Why-not-use-this-approach-to-troubleshoot-IO-and-Memory-issues"><a href="#Why-not-use-this-approach-to-troubleshoot-IO-and-Memory-issues" class="headerlink" title="Why not use this approach to troubleshoot IO and Memory issues?"></a>Why not use this approach to troubleshoot IO and Memory issues?</h3><p>The issue with measuring thread IO from the OS side is that most of the MySQL IO operations are done by background threads, such as read, write, and page cleaner threads. To measure thread IO you can use tools like pidstat with the -d (IO instead of CPU) option or iostat with -H (per thread). If you have a very IO-consuming thread you might be able to see it, but be warned that the results can be misleading because of the background thread operations.</p>
+<p>Memory consumption is an even trickier resource to measure from the OS side, as all memory is allocated under the MySQL process, and since it is MySQL that manages its memory access, it is transparent for the OS which thread is consuming the most memory. For this, we can use the <a href="https://dev.mysql.com/doc/refman/5.7/en/memory-summary-tables.html" target="_blank" rel="noopener">perfomance_schema memory instrumentation available starting in 5.7</a>.</p>
+<h3 id="Conclusion"><a href="#Conclusion" class="headerlink" title="Conclusion"></a>Conclusion</h3><p>There are many approaches to troubleshooting high CPU usage, but here we present a simple, widely-used approach on Oracle and PostgreSQL databases that can be adapted to MySQL, starting from version 5.7. By tracking down from the OS thread consumption to the database side, we can quickly detect CPU intensive queries that are affecting the system performance.</p>
+<hr>
+<p>Correctly understanding the true cause of database performance problems allows for a quick and efficient resolution – yet enterprises often lack this crucial information. Without it, your solution could require more time and resources than necessary, or inefficiently address the issue. And contrary to popular belief, the problem is not always the database itself!</p>
+<p>总结：</p>
+<p>1）pidstat -t -p <mysqld_pid> 1: 找出CPU高的 THREAD_OS_ID ;</p>
+<p>2) 根据 THREAD_OS_ID 查找到SQL文本；</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://liyuan5087.github.io/2020/04/20/%E3%80%8AJava-%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E7%9A%84%E8%89%BA%E6%9C%AF%E3%80%8B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -553,7 +696,7 @@
               
                 <a href="/archives/%7C%7Carchive">
               
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -566,7 +709,7 @@
               
               <div class="site-state-item site-state-tags">
                 
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">标签</span>
                 
               </div>
